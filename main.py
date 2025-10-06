@@ -8,6 +8,7 @@ from functions.get_files_info import schema_get_files_info
 from functions.get_file_content import schema_get_file_content
 from functions.run_python_file import schema_run_python_file
 from functions.write_file import schema_write_file
+from 
 
 
 available_functions = types.Tool(
@@ -64,10 +65,26 @@ def generate_content(client, messages, verbose):
     if response.function_calls:
         for function_call_part in response.function_calls:
             print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+            function_call_result = call_function(function_call_part,True)
+            if verbose:
+                print(f"-> {function_call_result.parts[0].function_response.response}")
+                
+            
+            print(function_call_result.parts[0].function_response.response )
     else:
         #print("Response: ")
         print(response.text)
 
+
+def call_function(function_call_part, verbose=False):
+    function_to_call = function_call_part.name
+    function_args = function_call_part.args
+    if verbose:
+        print(print(f"Calling function: {function_to_call}({function_args})"))
+    else:
+        print(f" - Calling function: {function_to_call}")
+    
+    
 
 
 if __name__ == "__main__":

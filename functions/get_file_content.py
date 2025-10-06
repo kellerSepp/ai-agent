@@ -1,5 +1,7 @@
 import os
 from config import *
+from google.genai import types
+
 
 def get_file_content(working_directory, file_path):
     try:
@@ -26,3 +28,17 @@ def get_file_content(working_directory, file_path):
         file_content_string = file_content_string[:MAX_CHARS] + f'[...File "{file_path}" truncated at {MAX_CHARS} characters]'
 
     return file_content_string
+
+schema_get_file_content = types.FunctionDeclaration(
+    name="get_file_content",
+    description="Read file contents of the specified file, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="The file to read from, relative to the working directory. If not provided, respond that it cannot be found.",
+            ),
+        },
+    ),
+)

@@ -4,10 +4,13 @@ from google import genai
 from google.genai import types
 import sys
 from config import *
+from functions.get_files_info import schema_get_files_info
 
-args = sys.argv
-
-TEST=False
+available_functions = types.Tool(
+    function_declarations=[
+        schema_get_files_info, 
+    ]
+)
 
 def main():
     load_dotenv()
@@ -32,37 +35,33 @@ def main():
     if verbose:
         print(f"User prompt: {user_prompt}")
 
-
     messages = [
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    if TEST == False:
-        #print("do some real shit")
-        generate_content(client, messages, verbose)
-        
-        
-
-
-        
-        
-        sys.exit(0)
-
-    print("This was just a Test")
+    generate_content(client, messages, verbose)
     sys.exit(0)
 
-def  generate_content(client, messages, verbose):
+def generate_content(client, messages, verbose):
     response = client.models.generate_content(
         model=MODEL_NAME, 
         contents=messages,
-        config = types.GenerateContentConfig(system_instruction = SYSTEM_PROMPT)
+        
+        config = types.GenerateContentConfig(tools=[available_functions], system_instruction = SYSTEM_PROMPT)
         )
-    if len(args) > 2 and args[2] == "--verbose":
+    
+    if verbose:
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
-    print("Response: ")
-    print(response.text)
     
+    if response.function_calls:
+        for function_call_part in response.function_calls:
+            print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+    else:
+        #print("Response: ")
+        print(response.text)
+
+
 
 if __name__ == "__main__":
     main()

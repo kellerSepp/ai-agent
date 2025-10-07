@@ -16,27 +16,30 @@ def run_python_file(working_directory, file_path, args=[]):
     except Exception as e:
         return(f'Error: Cannot execute "{file_path}" as it is outside the permitted working directory')
     
-    if not os.path.lexists(absolute_path):
-        return (f'Error: File "{file_path}" not found.')
-    
-    if not file_path.endswith(".py"):
-        return f'Error: "{file_path}" is not a Python file.'
+    if args is None:
+            args_list = []
+    elif isinstance(args, str):
+        args_list = args.split()
+    elif isinstance(args, list):
+        args_list = [str(a) for a in args]
+    else:
+        return 'Error: "args" must be a string or list of strings.'
+
     try:
-        result = subprocess.run([sys.executable, absolute_path] + args, capture_output=True, text=True, cwd=working_directory, timeout=TIMEOUT_TIME)
-        
+        result = subprocess.run(
+            [sys.executable, absolute_path] + args_list,
+            capture_output=True, text=True, cwd=working_directory, timeout=TIMEOUT_TIME
+        )
         stdout = result.stdout.strip()
         stderr = result.stderr.strip()
-
         if stdout == "" and stderr == "":
-            return ("No output produced.")
-
+            return "No output produced."
         lines = [f"STDOUT: {stdout}", f"STDERR: {stderr}"]
-        if result.returncode != 0 :
+        if result.returncode != 0:
             lines.append(f"Process exited with code {result.returncode}")
         return "\n".join(lines)
-    
     except Exception as e:
-        return (f"Error: executing Python file: {e}")
+        return f"Error: executing Python file: {e}"
     
 
 schema_run_python_file = types.FunctionDeclaration(

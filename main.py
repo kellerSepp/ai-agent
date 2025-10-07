@@ -4,11 +4,10 @@ from google import genai
 from google.genai import types
 import sys
 from config import *
-from functions.get_files_info import schema_get_files_info
-from functions.get_file_content import schema_get_file_content
-from functions.run_python_file import schema_run_python_file
-from functions.write_file import schema_write_file
-from 
+from functions.get_files_info import get_files_info, schema_get_files_info
+from functions.get_file_content import get_file_content, schema_get_file_content
+from functions.run_python_file import run_python_file, schema_run_python_file
+from functions.write_file import schema_write_file, write_file
 
 
 available_functions = types.Tool(
@@ -19,6 +18,13 @@ available_functions = types.Tool(
         schema_write_file
     ]
 )
+
+function_dictionary = {
+    "get_files_info" : get_files_info,
+    "get_file_content" : get_file_content,
+    "run_python_file" : run_python_file,
+    "write_file" : write_file
+}
 
 def main():
     load_dotenv()
@@ -66,25 +72,51 @@ def generate_content(client, messages, verbose):
         for function_call_part in response.function_calls:
             print(f"Calling function: {function_call_part.name}({function_call_part.args})")
             function_call_result = call_function(function_call_part,True)
+            resp = function_call_result.parts[0].function_response.response
+            if not isinstance(resp, dict) or "result" not in resp:
+                raise RuntimeError("Tool response missing 'result'")
+
             if verbose:
-                print(f"-> {function_call_result.parts[0].function_response.response}")
-                
-            
-            print(function_call_result.parts[0].function_response.response )
+                # Print the raw string so newlines are real
+                print(resp["result"])
     else:
         #print("Response: ")
         print(response.text)
 
 
 def call_function(function_call_part, verbose=False):
-    function_to_call = function_call_part.name
-    function_args = function_call_part.args
+    function_to_call = function_dictionary.get(function_call_part.name)
+    function_args = {}
+    if function_call_part.args != None:
+        function_args = dict(function_call_part.args)
+    function_args["working_directory"] = "./calculator"
     if verbose:
-        print(print(f"Calling function: {function_to_call}({function_args})"))
+        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
     else:
-        print(f" - Calling function: {function_to_call}")
+        print(f" - Calling function: {function_call_part.name}")
     
-    
+    if not function_to_call:
+        return types.Content(
+            role="tool",
+            parts=[
+                types.Part.from_function_response(
+                    name=function_call_part.name,
+                    response={"error": f"Unknown function: {function_call_part.name}"},
+                )
+            ],
+        )
+    function_result = function_to_call(**function_args)
+
+    return types.Content(
+    role="tool",
+    parts=[
+        types.Part.from_function_response(
+            name=function_call_part.name,
+            response={"result": function_result},
+            )
+        ],
+    )
+
 
 
 if __name__ == "__main__":

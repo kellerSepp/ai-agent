@@ -53,35 +53,55 @@ def main():
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    generate_content(client, messages, verbose)
+    for i in range(0,LOOP_ITERATIONS):
+        response = generate_content(client, messages, verbose)
+        try:
+            done = (not response.function_calls) and bool(response.text)
+            if done or i == LOOP_ITERATIONS - 1:
+                if response.text:
+                    print("Final response:")
+                    print(response.text)
+                break
+            #for candidate in response.candidates:
+                #messages.append(candidate.content)
+                #messages.append(genai.types.Content(response, role="user"))
+        except Exception as e:
+            return (f"Error: {e}")
+        
+    #print("print this!:", messages)
+
     sys.exit(0)
 
 def generate_content(client, messages, verbose):
     response = client.models.generate_content(
         model=MODEL_NAME, 
         contents=messages,
-        
         config = types.GenerateContentConfig(tools=[available_functions], system_instruction = SYSTEM_PROMPT)
         )
     
+    #print ("type(response):", type(response) )
+    #print ("dir(response)", dir(response))
+    for cand in response.candidates:
+        messages.append(cand.content)
     if verbose:
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
     
     if response.function_calls:
         for function_call_part in response.function_calls:
-            print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+            #print(f"Calling function: {function_call_part.name}({function_call_part.args})")
             function_call_result = call_function(function_call_part,True)
+            #messages.append(genai.types.Content(role="user", parts=[function_call_result]))
+            messages.append(function_call_result)
             resp = function_call_result.parts[0].function_response.response
             if not isinstance(resp, dict) or "result" not in resp:
                 raise RuntimeError("Tool response missing 'result'")
-
             if verbose:
-                # Print the raw string so newlines are real
                 print(resp["result"])
-    else:
+            #return response
+    
         #print("Response: ")
-        print(response.text)
+    return response
 
 
 def call_function(function_call_part, verbose=False):

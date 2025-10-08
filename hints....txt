@@ -1,0 +1,24 @@
+Getting closer! A few targeted fixes to try:
+
+    In the loop, you should append the model’s messages and any tool responses to messages before the next iteration. Right now you append candidate.content (good), but this line is wrong:
+        messages.append(genai.types.Content(response, role="user"))
+        You need to append the actual tool response as a types.Content with role="user" and proper parts. Where are you converting function_call_result into a Content and adding it?
+
+    Where do you call the tool functions relative to appending the model message? Flow should be:
+        append candidate.content (the model’s message),
+        for each response.function_calls, call the function,
+        append the function response message (as types.Content(role="user", parts=[types.Part.from_function_response(...)]) via your call_function).
+
+    Your break condition should end when there is a final answer. You currently break if response.text exists (good), but make sure you only break after you’ve appended the model message so the conversation is complete.
+
+    generate_content should not call tools itself. Let it just return the raw response. Do you see how calling tools inside generate_content prevents you from appending the tool results to messages in the main loop?
+
+    Are you passing the entire messages list each call? Yes. Good.
+
+Can you update:
+
+    Move tool-calling out of generate_content into the loop,
+    Replace the bad append with the function_call_result from call_function,
+    Ensure order: append model message → call tools → append tool responses,
+    then share just your loop and generate_content?
+
